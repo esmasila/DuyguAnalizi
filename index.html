@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Duygu Analizi</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">◈</span>
+      <span class="logo-text">Duygu Analizi</span>
+    </div>
+    <p class="tagline">Türkçe metin · Açıklanabilir Yapay Zeka</p>
+  </header>
+
+  <main>
+
+    <section class="input-section">
+      <label class="input-label" for="txt">Cümlenizi girin</label>
+      <textarea id="txt" placeholder="Analiz etmek istediğiniz Türkçe metni buraya yazın…" rows="4"></textarea>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="analyze()">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2l10 6-10 6V2z"/></svg>
+          Analiz Et
+        </button>
+        <button class="btn-secondary" onclick="clearAll()">Temizle</button>
+        <span class="shortcut">Ctrl + Enter</span>
+      </div>
+    </section>
+
+    <section class="examples-section">
+      <p class="examples-label">Örnek cümleler</p>
+      <div class="ex-pills">
+        <button class="ex-pill pos" onclick="setEx(this)">Bu film gerçekten harikaydı, çok beğendim</button>
+        <button class="ex-pill neg" onclick="setEx(this)">Servis çok kötüydü, yemekler soğuk geldi</button>
+        <button class="ex-pill pos" onclick="setEx(this)">Müşteri hizmetleri mükemmel, teşekkürler</button>
+        <button class="ex-pill neg" onclick="setEx(this)">Bu kadar başarısız bir uygulama görmedim</button>
+        <button class="ex-pill mix" onclick="setEx(this)">Ürün kaliteli ama fiyat biraz pahalı</button>
+        <button class="ex-pill neu" onclick="setEx(this)">Hava bugün bulutlu ve rüzgarlı</button>
+        <button class="ex-pill neu" onclick="setEx(this)">Toplantı saat 14:00'te başlayacak</button>
+        <button class="ex-pill neu" onclick="setEx(this)">Tren Ankara'ya üç saatte gidiyor</button>
+        <button class="ex-pill neu" onclick="setEx(this)">Mağaza hafta içi her gün açık</button>
+        <button class="ex-pill neu" onclick="setEx(this)">Rapor yarın teslim edilecek</button>
+        <button class="ex-pill neu" onclick="setEx(this)">Kitabın toplam iki yüz sayfası var</button>
+      </div>
+    </section>
+
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <span>Analiz yapılıyor…</span>
+    </div>
+
+    <section id="result" class="result-section" style="display:none">
+
+      <!-- Karar kartı -->
+      <div class="verdict-card">
+        <div class="verdict-left">
+          <div id="verdict-emoji" class="verdict-emoji"></div>
+          <div>
+            <div id="verdict-label" class="verdict-label"></div>
+            <div id="verdict-sub" class="verdict-sub"></div>
+          </div>
+        </div>
+        <div class="score-pills">
+          <div class="score-pill pos-pill">
+            <span class="sp-label">Pozitif</span>
+            <span class="sp-val" id="s-pos">—</span>
+          </div>
+          <div class="score-pill neg-pill">
+            <span class="sp-label">Negatif</span>
+            <span class="sp-val" id="s-neg">—</span>
+          </div>
+          <div class="score-pill neu-pill">
+            <span class="sp-label">Nötr</span>
+            <span class="sp-val" id="s-neu">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Güven çubuğu -->
+      <div class="card">
+        <div class="card-row">
+          <span class="card-label">Güven Skoru</span>
+          <span id="conf-pct" class="conf-pct-text">—</span>
+        </div>
+        <div class="conf-bar-bg">
+          <div id="conf-bar" class="conf-bar"></div>
+        </div>
+      </div>
+
+      <!-- Kelime ısı haritası -->
+      <div class="card">
+        <div class="card-title">
+          Kelime Isı Haritası
+          <span class="card-hint">üzerine gelin → katkı değeri</span>
+        </div>
+        <div id="tokens" class="token-row"></div>
+        <div class="legend">
+          <span class="leg-item"><span class="leg-dot" style="background:#15803d"></span>Güçlü pozitif</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#86efac"></span>Orta pozitif</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#d1d5db"></span>Nötr</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#fca5a5"></span>Orta negatif</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#dc2626"></span>Güçlü negatif</span>
+        </div>
+      </div>
+
+      <!-- XAI Karşılaştırma Başlığı -->
+      <div class="xai-header">
+        <div class="xai-title-row">
+          <span class="xai-section-title">Açıklanabilir Yapay Zeka (XAI) Karşılaştırması</span>
+          <span class="xai-badge">2 Yöntem</span>
+        </div>
+        <p class="xai-desc">
+          İki farklı XAI yöntemi aynı metni nasıl yorumluyor? Hangi kelimeler kararı daha çok etkiliyor?
+        </p>
+      </div>
+
+      <!-- SHAP ve LIME yan yana -->
+      <div class="xai-grid">
+
+        <!-- SHAP -->
+        <div class="card xai-card">
+          <div class="card-title">
+            SHAP
+            <span class="method-badge shap-badge">Shapley Additive Explanations</span>
+          </div>
+          <p class="method-desc">
+            Her kelimenin ortalama <strong>marjinal katkısı</strong>nı tüm olası kelime kombinasyonları üzerinden hesaplar. Oyun teorisinden türemiştir.
+          </p>
+          <div id="shap-chart" class="bar-chart"></div>
+          <div class="chart-axis">
+            <span>← Negatif</span>
+            <span class="axis-zero">0</span>
+            <span>Pozitif →</span>
+          </div>
+        </div>
+
+        <!-- LIME -->
+        <div class="card xai-card">
+          <div class="card-title">
+            LIME
+            <span class="method-badge lime-badge">Local Interpretable Model-agnostic</span>
+          </div>
+          <p class="method-desc">
+            Her kelimeyi tek tek kaldırarak <strong>tahmin değişimini</strong> ölçer. Hangi kelimeler olmazsa karar değişiyor?
+          </p>
+          <div id="lime-chart" class="bar-chart"></div>
+          <div class="chart-axis">
+            <span>← Negatif</span>
+            <span class="axis-zero">0</span>
+            <span>Pozitif →</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Karşılaştırma özeti -->
+      <div class="card comparison-card">
+        <div class="card-title">Yöntem Karşılaştırması</div>
+        <div id="comparison-table" class="comparison-table"></div>
+        <div class="method-info-grid">
+          <div class="method-info">
+            <span class="method-dot shap-dot"></span>
+            <div>
+              <strong>SHAP</strong>
+              <p>Matematiksel olarak daha doğru. Tüm kombinasyonları değerlendirir. Yavaş ama kapsamlı.</p>
+            </div>
+          </div>
+          <div class="method-info">
+            <span class="method-dot lime-dot"></span>
+            <div>
+              <strong>LIME</strong>
+              <p>Hızlı ve pratik. Her kelimeyi izole ederek test eder. Etkileşimleri atlayabilir.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Model açıklaması -->
+      <div class="card">
+        <div class="card-title">Model Açıklaması</div>
+        <p id="xai-text" class="xai-text"></p>
+      </div>
+
+    </section>
+  </main>
+
+  <footer>
+    <p>Duygu Analizi · XAI: SHAP & LIME · <span id="current-year"></span></p>
+  </footer>
+
+  <script src="sentiment.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
